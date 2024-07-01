@@ -1,0 +1,43 @@
+from web3 import Web3
+from PIL import Image
+import json
+import os
+
+# Connecting to an Ethereum node
+w3 = Web3(Web3.HTTPProvider('https://mainnet.infura.io/v3/YOUR_PROJECT_ID'))
+
+# NFT Settings
+collection_name = "My NFT Collection"
+collection_symbol = "MNFT"
+base_uri = "ipfs://QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/"
+
+# Create an NFT contract
+contract = w3.eth.contract(abi=json.load(open('abi.json')), bytecode=open('bytecode.bin').read())
+
+# Contract Deployment
+tx = contract.constructor(collection_name, collection_symbol, base_uri).buildTransaction({
+    'from': w3.eth.accounts[0],
+    'nonce': w3.eth.getTransactionCount(w3.eth.accounts[0]),
+    'gas': 5000000,
+    'gasPrice': w3.toWei('50', 'gwei')
+})
+signed_tx = w3.eth.account.signTransaction(tx, private_key=os.environ['PRIVATE_KEY'])
+tx_hash = w3.eth.sendRawTransaction(signed_tx.rawTransaction)
+contract_address = w3.eth.waitForTransactionReceipt(tx_hash).contractAddress
+
+# Create an NFT
+for i in range(1, 11):
+    image = Image.open(f"images/image{i}.png")
+    image.save(f"images/image{i}.gif")
+    
+    tx = contract.functions.mint(w3.eth.accounts[0], i, f"{base_uri}image{i}.gif").buildTransaction({
+        'from': w3.eth.accounts[0],
+        'nonce': w3.eth.getTransactionCount(w3.eth.accounts[0]),
+        'gas': 500000,
+        'gasPrice': w3.toWei('50', 'gwei')
+    })
+    signed_tx = w3.eth.account.signTransaction(tx, private_key=os.environ['PRIVATE_KEY'])
+    tx_hash = w3.eth.sendRawTransaction(signed_tx.rawTransaction)
+    tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
+    
+    print(f"NFT {i} created: {tx_receipt.transactionHash.hex()}")
